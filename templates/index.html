@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Expense Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+<header>
+<div>
+<p class="eyebrow">PERSONAL FINANCE</p>
+<h1>Smart Expense Tracker</h1>
+<p class="subtitle">Track spending, manage your budget, and understand your money.</p>
+</div>
+<a class="btn secondary" href="{{ url_for('export', month=month) }}">Export CSV</a>
+</header>
+
+<section class="card filters">
+<form method="get">
+<label>Month<input type="month" name="month" value="{{ month }}"></label>
+<label>Search<input type="search" name="search" value="{{ search }}" placeholder="Search expenses"></label>
+<label>Category<select name="category">
+<option value="">All categories</option>
+{% for c in categories %}<option {% if selected_category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+</select></label>
+<button class="btn">Apply</button>
+</form>
+</section>
+
+<section class="stats">
+<div class="card stat"><span>Total spent</span><strong>₹{{ "%.2f"|format(total) }}</strong></div>
+<div class="card stat"><span>Monthly budget</span><strong>₹{{ "%.2f"|format(budget) }}</strong></div>
+<div class="card stat {% if remaining < 0 %}danger{% endif %}">
+<span>{% if remaining < 0 %}Over budget{% else %}Remaining{% endif %}</span>
+<strong>₹{{ "%.2f"|format(remaining|abs) }}</strong>
+</div>
+</section>
+
+<div class="grid">
+<section class="card">
+<h2>Add expense</h2>
+<form method="post" action="{{ url_for('add') }}" class="expense-form">
+<label>Title<input required name="title" placeholder="e.g. Lunch"></label>
+<label>Amount<input required type="number" min="0.01" step="0.01" name="amount" placeholder="250"></label>
+<label>Category<select name="category">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></label>
+<label>Date<input required type="date" name="expense_date" value="{{ month }}-01"></label>
+<label class="full">Notes<textarea name="notes" placeholder="Optional note"></textarea></label>
+<button class="btn full">Add expense</button>
+</form>
+</section>
+
+<section class="card">
+<h2>Spending by category</h2>
+<canvas id="chart"></canvas>
+{% if not category_data %}<p class="empty">No expenses for this month yet.</p>{% endif %}
+</section>
+</div>
+
+<section class="card">
+<h2>Monthly budget</h2>
+<form method="post" action="{{ url_for('budget') }}" class="budget">
+<input type="number" name="budget" min="0" step="0.01" value="{{ budget }}">
+<button class="btn">Update budget</button>
+</form>
+</section>
+
+<section class="card">
+<div class="row"><h2>Transactions</h2><span class="muted">{{ expenses|length }} shown</span></div>
+{% if expenses %}
+<div class="table-wrap"><table>
+<thead><tr><th>Expense</th><th>Category</th><th>Date</th><th>Amount</th><th></th></tr></thead>
+<tbody>
+{% for e in expenses %}
+<tr>
+<td><b>{{ e.title }}</b>{% if e.notes %}<small>{{ e.notes }}</small>{% endif %}</td>
+<td><span class="pill">{{ e.category }}</span></td>
+<td>{{ e.expense_date }}</td>
+<td><b>₹{{ "%.2f"|format(e.amount) }}</b></td>
+<td><form method="post" action="{{ url_for('delete', item_id=e.id) }}">
+<button class="delete" onclick="return confirm('Delete this expense?')">Delete</button>
+</form></td>
+</tr>
+{% endfor %}
+</tbody></table></div>
+{% else %}<div class="empty">No expenses found.</div>{% endif %}
+</section>
+</div>
+
+<script>
+const data={{ category_data|tojson }};
+if(data.length){
+new Chart(document.getElementById("chart"),{
+type:"doughnut",
+data:{labels:data.map(x=>x.category),datasets:[{data:data.map(x=>x.total)}]},
+options:{responsive:true,plugins:{legend:{position:"bottom"}}}
+});
+}
+</script>
+</body>
+</html>
